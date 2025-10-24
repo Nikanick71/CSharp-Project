@@ -153,7 +153,7 @@
                     var author = Console.ReadLine() ?? "";
                     if (string.IsNullOrWhiteSpace(author))
                     {
-                        Console.WriteLine("Author cant be empty");
+                        Console.WriteLine("Author cant be empty!");
                         return;
                     }
 
