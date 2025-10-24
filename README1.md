@@ -72,7 +72,7 @@ class Program
         Console.WriteLine("\nWord: " + string.Join(" ", guessedWord));
         if (new string(guessedWord) == wordToGuess)
         {
-            Console.WriteLine("Congratulations! You won!");
+            Console.WriteLine("Congratulations! You won");
         }
         else
         {
