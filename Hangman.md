@@ -77,7 +77,7 @@ class Program
         }
         else
         {
-            Console.WriteLine($"Game Over! The word was {wordToGuess}.");
+            Console.WriteLine($"Game Over :( The word was {wordToGuess}.");
         }
     }
 
