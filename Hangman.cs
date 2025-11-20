@@ -1,84 +1,99 @@
-
-
 class Program
 {
     static void Main()
     {
+        string[] words = { "PROGRAMMING", "COMPUTER", "ALGORITHM", "DATABASE", "NETWORK" };
+        var rng = new Random();
 
-        string[] words = { "PROGRAMMING", "COMPUTER", "ALGORYTHM", "DATABASE", "NETWORK" };
-        Random random = new Random();
-        string wordToGuess = words[random.Next(words.Length)];
-        char[] guessedWord = new char[wordToGuess.Length];
-        List<char> guessedLetters = new List<char>();
-        int incorrectGuesses = 0;
-        int maxIncorrectGuesses = 6;
-
-
-        for (int i = 0; i < wordToGuess.Length; i++)
+        while (true)
         {
-            guessedWord[i] = '_';
+            string wordToGuess = words[rng.Next(words.Length)];
+            PlayGame(wordToGuess);
+
+            Console.Write("Play again? (Y/N): ");
+            var again = Console.ReadLine()?.Trim().ToUpperInvariant() ?? "N";
+            if (again != "Y") break;
+            Console.WriteLine();
         }
+    }
+
+    static void PlayGame(string wordToGuess)
+    {
+        const int maxIncorrect = 6;
+        int incorrectGuesses = 0;
+        char[] guessedWord = Enumerable.Repeat('_', wordToGuess.Length).ToArray();
+        var guessedLetters = new HashSet<char>();
 
         Console.WriteLine("Welcome to Hangman!");
 
-        while (incorrectGuesses < maxIncorrectGuesses && new string(guessedWord) != wordToGuess)
+        while (incorrectGuesses < maxIncorrect && guessedWord.Contains('_'))
         {
-
             DisplayHangman(incorrectGuesses);
-
-
             Console.WriteLine("\nWord: " + string.Join(" ", guessedWord));
             Console.WriteLine("Guessed letters: " + (guessedLetters.Count > 0 ? string.Join(", ", guessedLetters) : "None"));
-            Console.Write("Enter a letter: ");
+            Console.Write("Enter a letter (or try whole word): ");
 
-
-            string input = Console.ReadLine()?.ToUpper() ?? "";
-            if (string.IsNullOrEmpty(input) || input.Length != 1 || !char.IsLetter(input[0]))
+            string input = Console.ReadLine()?.Trim().ToUpperInvariant() ?? "";
+            if (string.IsNullOrEmpty(input))
             {
-                Console.WriteLine("Please enter a single letter!");
+                Console.WriteLine("Please enter something.");
                 continue;
             }
 
+            // Allow whole-word guess
+            if (input.Length > 1)
+            {
+                if (input == wordToGuess)
+                {
+                    Console.WriteLine("You guessed the whole word! Congratulations!");
+                    Console.WriteLine($"The word was: {wordToGuess}");
+                    return;
+                }
+                else
+                {
+                    incorrectGuesses++;
+                    Console.WriteLine("Wrong whole-word guess!");
+                    continue;
+                }
+            }
+
             char guess = input[0];
+            if (!char.IsLetter(guess))
+            {
+                Console.WriteLine("Please enter a letter (A-Z).");
+                continue;
+            }
 
-
-            if (guessedLetters.Contains(guess))
+            if (!guessedLetters.Add(guess))
             {
                 Console.WriteLine("You already guessed that letter!");
                 continue;
             }
 
-            guessedLetters.Add(guess);
-
-
-            bool correctGuess = false;
+            bool correct = false;
             for (int i = 0; i < wordToGuess.Length; i++)
             {
                 if (wordToGuess[i] == guess)
                 {
                     guessedWord[i] = guess;
-                    correctGuess = true;
+                    correct = true;
                 }
             }
 
-            if (!correctGuess)
+            if (!correct)
             {
                 incorrectGuesses++;
                 Console.WriteLine("Incorrect guess!");
             }
         }
 
-
         DisplayHangman(incorrectGuesses);
         Console.WriteLine("\nWord: " + string.Join(" ", guessedWord));
-        if (new string(guessedWord) == wordToGuess)
-        {
+
+        if (!guessedWord.Contains('_'))
             Console.WriteLine("Congratulations! You won!");
-        }
         else
-        {
             Console.WriteLine($"Game Over :( The word was {wordToGuess}.");
-        }
     }
 
     static void DisplayHangman(int incorrectGuesses)
@@ -140,6 +155,7 @@ class Program
                 Console.WriteLine("      | ");
                 Console.WriteLine("Lives left: 1");
                 break;
+            default:
             case 6:
                 Console.WriteLine("  ____  ");
                 Console.WriteLine(" |    | ");
@@ -147,7 +163,7 @@ class Program
                 Console.WriteLine("/|\\   | ");
                 Console.WriteLine("/ \\   | ");
                 Console.WriteLine("      | ");
-
+                Console.WriteLine("No lives left.");
                 break;
         }
     }
