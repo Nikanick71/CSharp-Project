@@ -1,6 +1,4 @@
 
-    namespace BookManagement
-    {
         public class Book
         {
             private string _title;
@@ -232,4 +230,3 @@
                 }
             }
         }
-    }
