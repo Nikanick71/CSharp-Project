@@ -1,130 +1,158 @@
 
-
-class Program
+public class HangmanGame
 {
-    static readonly string[] Words =
-        { "PROGRAMMING", "COMPUTER", "ALGORITHM", "DATABASE", "NETWORK" };
+    private const int MaxErrors = 6;
+    private const string WordsFile = "words.txt";
+    private const string ResultsFile = "results.txt";
 
-    static void Main()
+    private readonly Random rng = new Random();
+
+    public void Run()
     {
         ShowWelcome();
-        var rng = new Random();
+        string[] words = LoadWords();
 
         while (true)
         {
-            PlayGame(Words[rng.Next(Words.Length)]);
-            if (!AskPlayAgain()) return;
+            string word = words[rng.Next(words.Length)];
+            GameResult result = PlayGame(word);
+
+            SaveResult(result);
+
+            if (!AskPlayAgain())
+                break;
+
             Console.Clear();
         }
     }
 
-    static void ShowWelcome()
-    {
-        Console.WriteLine("=======================================");
-        Console.WriteLine("        WELCOME TO HANGMAN GAME        ");
-        Console.WriteLine("=======================================");
-        Console.WriteLine("Guess the hidden word one letter at a time,");
-        Console.WriteLine("or try to guess the whole word at once!");
-        Console.WriteLine("You have 6 lives. Each wrong guess brings you closer to being hanged!");
-        Console.WriteLine("Good luck! May your guesses be sharp.\n");
-    }
+   
 
-    static bool AskPlayAgain()
+    private string[] LoadWords()
     {
-        while (true)
+        if (!File.Exists(WordsFile))
         {
-            Console.Write("Play again? (Y/N): ");
-            string input = Console.ReadLine()?.Trim().ToUpperInvariant() ?? "";
-            if (input == "Y" || input == "N") return input == "Y";
-            Console.WriteLine("Error: You must enter Y or N.\n");
+            File.WriteAllLines(WordsFile, new[]
+            {
+                "PROGRAMMING",
+                "COMPUTER",
+                "ALGORITHM",
+                "DATABASE",
+                "NETWORK"
+            });
         }
+
+        return File.ReadAllLines(WordsFile)
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .Select(w => w.Trim().ToUpperInvariant())
+            .ToArray();
     }
 
-    static void PlayGame(string word)
+    private void SaveResult(GameResult result)
     {
-        const int maxErrors = 6;
-        var guessed = Enumerable.Repeat('_', word.Length).ToArray();
-        var used = new HashSet<char>();
+        string log =
+            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} | " +
+            $"{(result.Won ? "WIN" : "LOSS")} | " +
+            $"WORD: {result.Word} | " +
+            $"LIVES LEFT: {result.LivesLeft} | " +
+            $"USED: {(result.UsedLetters.Count == 0 ? "None" : string.Join(",", result.UsedLetters))} | " +
+            $"FINAL: {string.Join(" ", result.FinalState)}";
+
+        File.AppendAllText(ResultsFile, log + Environment.NewLine);
+    }
+
+    
+
+    private GameResult PlayGame(string word)
+    {
+        char[] guessed = Enumerable.Repeat('_', word.Length).ToArray();
+        HashSet<char> used = new HashSet<char>();
         int errors = 0;
 
-        while (errors < maxErrors && guessed.Contains('_'))
+        while (errors < MaxErrors && guessed.Contains('_'))
         {
-            DisplayHangman(errors);
-            PrintState(guessed, used);
+            DisplayStatus(guessed, used, errors);
 
-            string input = GetInput().Trim().ToUpperInvariant();
-            if (string.IsNullOrEmpty(input)) continue;
+            string input = Console.ReadLine()?.Trim().ToUpperInvariant() ?? "";
+            if (input == "") continue;
 
-            // FULL WORD GUESS
             if (input.Length > 1)
             {
-                if (input == word.ToUpperInvariant())
+                if (input == word)
                 {
-                    Array.Copy(word.ToCharArray(), guessed, word.Length);
-                    Console.WriteLine($"You guessed the full word! GG! The word was: {word}");
+                    for (int i = 0; i < word.Length; i++)
+                        guessed[i] = word[i];
                     break;
                 }
-                Console.WriteLine("Incorrect full-word guess!");
                 errors++;
                 continue;
             }
 
             char letter = input[0];
-            if (!char.IsLetter(letter))
-            {
-                Console.WriteLine("Error: You must enter a valid letter (A-Z).");
+            if (!char.IsLetter(letter) || !used.Add(letter))
                 continue;
-            }
 
-            if (!used.Add(letter))
-            {
-                Console.WriteLine("You already guessed that letter!");
-                continue;
-            }
-
-            if (!ApplyLetterGuess(letter, word, guessed)) errors++;
+            if (!ApplyGuess(letter, word, guessed))
+                errors++;
         }
 
-        DisplayHangman(errors);
-        PrintState(guessed, used);
-        Console.WriteLine(guessed.Contains('_') ? $"Game Over! The word was: {word}" : "Congrats! You won!");
+        bool won = !guessed.Contains('_');
+        int livesLeft = MaxErrors - errors;
+
+        Console.WriteLine(won
+            ? "✔ You won."
+            : $"✘ You lost. Word was: {word}");
+
+        return new GameResult
+        {
+            Word = word,
+            Won = won,
+            LivesLeft = livesLeft,
+            UsedLetters = used.OrderBy(c => c).ToList(),
+            FinalState = guessed.ToArray()
+        };
     }
 
-    static bool ApplyLetterGuess(char letter, string word, char[] guessed)
+    private bool ApplyGuess(char letter, string word, char[] guessed)
     {
-        bool match = false;
+        bool hit = false;
+
         for (int i = 0; i < word.Length; i++)
-            if (word[i] == letter) { guessed[i] = letter; match = true; }
-
-        if (!match) Console.WriteLine("Incorrect letter!");
-        return match;
+        {
+            if (word[i] == letter)
+            {
+                guessed[i] = letter;
+                hit = true;
+            }
+        }
+        return hit;
     }
 
-    static string GetInput()
+    private void DisplayStatus(char[] guessed, HashSet<char> used, int errors)
     {
-        Console.Write("Enter a letter or full word: ");
-        return Console.ReadLine() ?? "";
-    }
-
-    static void PrintState(char[] guessed, HashSet<char> used)
-    {
+        Console.WriteLine($"\nLives left: {MaxErrors - errors}");
         Console.WriteLine("Word: " + string.Join(" ", guessed));
-        Console.WriteLine("Used letters: " + (used.Count > 0 ? string.Join(", ", used) : "None"));
-        Console.WriteLine();
+        Console.WriteLine("Used: " + (used.Count == 0 ? "None" : string.Join(", ", used)));
+        Console.Write("Input: ");
     }
 
-    static void DisplayHangman(int errors)
+    private bool AskPlayAgain()
     {
-        string[] hangman = new string[7];
-        hangman[0] = "  ____  \n |    | ";
-        hangman[1] = errors >= 1 ? " O    |" : "      |";
-        hangman[2] = errors >= 2 ? (errors >= 3 ? "/|\\" : "/|") : (errors == 2 ? " |    |" : "      |");
-        hangman[3] = errors >= 5 ? "/" : " ";
-        hangman[4] = errors == 6 ? "\\" : " ";
-        hangman[5] = "      |";
-        hangman[6] = errors == 6 ? "No lives left." : $"Lives left: {6 - errors}";
-
-        Console.WriteLine("\nHangman:");
-        foreach (var line in hangman) Console.WriteLine(line);
+        Console.Write("\nPlay again? (Y/N): ");
+        return Console.ReadLine()?.Trim().ToUpperInvariant() == "Y";
     }
+
+    private void ShowWelcome()
+    {
+        Console.WriteLine("=== HANGMAN ===\n");
+    }
+}
+
+public class GameResult
+{
+    public string Word { get; set; }
+    public bool Won { get; set; }
+    public int LivesLeft { get; set; }
+    public List<char> UsedLetters { get; set; }
+    public char[] FinalState { get; set; }
 }
